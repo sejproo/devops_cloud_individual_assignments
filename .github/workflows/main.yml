@@ -22,15 +22,15 @@ jobs:
     - name: "Check files existence"
       uses: andstor/file-existence-action@v2
       with:
-        files: "postman/collection.json,postman/environment.json"
+        files: "./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/postman/collection.json,./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/postman/environment.json"
         fail: true
 
     - name: Run API Tests
       id: run-newman
       uses: anthonyvscode/newman-action@master
       with:
-        collection: postman/collection.json
-        environment: postman/environment.json
+        collection: ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/postman/collection.json
+        environment: ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/postman/environment.json
         reporters: cli
         bail: true
 
@@ -40,9 +40,9 @@ jobs:
       env:
         JSON_DOC: ${{ steps.run-newman.outputs.summary }}
       run: |
-        printf '%s\n' "$JSON_DOC" > summary.json
-        cat summary.json
-        if grep -q Collection summary.json; then
+        printf '%s\n' "$JSON_DOC" > ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/summary.json
+        cat ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/summary.json
+        if grep -q Collection ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/summary.json; then
           echo "failed=false" >> $GITHUB_OUTPUT;
         else
           echo "failed=true" >> $GITHUB_OUTPUT;
