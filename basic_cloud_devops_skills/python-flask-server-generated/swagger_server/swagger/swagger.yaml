@@ -9,8 +9,6 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   version: 1.0.0
 servers:
-- url: https://virtserver.swaggerhub.com/ChiragSejwaniChetwani/tutorial/1.0.0
-  description: SwaggerHub API Auto Mocking
 - url: https://virtserver.swaggerhub.com/tutorial/1.0.0
   description: SwaggerHub API Auto Mocking
 paths:
@@ -27,8 +25,7 @@ paths:
         style: simple
         explode: false
         schema:
-          type: string
-          format: uuid
+          type: integer
       responses:
         "200":
           description: Successful operation
@@ -86,8 +83,7 @@ paths:
           content:
             application/json:
               schema:
-                type: string
-                format: uuid
+                type: integer
                 x-content-type: application/json
         "400":
           description: "invalid input, object invalid"
