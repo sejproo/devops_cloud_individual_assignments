@@ -2,7 +2,7 @@ name: Build Test and push
 on: [push]
 env:
   IMAGE_NAME: student_service
-  REPO_NAME: devops_cloud_individual_assignments
+  REPO_NAME: chiragsej
 
 
 
