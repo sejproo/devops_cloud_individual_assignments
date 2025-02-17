@@ -30,7 +30,7 @@ jobs:
       run: |
         cd ./basic_cloud_devops_skills/lab1_1/python-flask-server-generated/
         docker compose up -d
-        docker-compose ps
+        docker compose ps
         sleep 10
 
 
