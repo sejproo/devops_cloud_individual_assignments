@@ -32,7 +32,7 @@ class TestDefaultController(BaseTestCase):
         deletes student
         """
         response = self.client.open(
-            '/ChiragSejwaniChetwani/tutorial/1.0.0/student/{student_id}'.format(student_id=1.2),
+            '/ChiragSejwaniChetwani/tutorial/1.0.0/student/{student_id}'.format(student_id=56),
             method='DELETE')
         self.assert200(response,
                        'Response body is : ' + response.data.decode('utf-8'))

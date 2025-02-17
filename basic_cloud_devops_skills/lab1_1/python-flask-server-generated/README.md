@@ -47,3 +47,10 @@ docker build -t swagger_server .
 # starting up a container
 docker run -p 8080:8080 swagger_server
 ```
+
+## Useful commands for running mongo DB
+
+docker build --tag chiragsej/student_service .
+docker push chiragsej/student_service
+docker compose up
+docker compose down
