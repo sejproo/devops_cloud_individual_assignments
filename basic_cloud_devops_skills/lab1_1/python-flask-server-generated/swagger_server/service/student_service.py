@@ -88,8 +88,8 @@ def delete(student_id=None):
         
     if not student_id:
         return 'error', 400
-    student = student_db.find_one({"id": student_id})
+    student = student_db.find_one({"_id": student_id})
     if not student:
         return 'not found', 404
-    student_db.delete_one({"id": student_id})
+    student_db.delete_one({"_id": student_id})
     return student_id
