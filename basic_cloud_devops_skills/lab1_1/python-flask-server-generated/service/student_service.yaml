@@ -38,7 +38,7 @@ spec:
       - env:
         - name: MONGO_URI
           value: mongodb://mongo:27017
-        image: basic_cloud_devops_skills/python-flask-server-generated
+        image: chiragsej/student_service
         name: service
         imagePullPolicy: Always
         ports:
