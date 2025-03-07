@@ -1,0 +1,354 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+
+    "Description": "AWS CloudFormation Template for LAMP_Webserver Single_Instance: 
+    Create a LAMP stack using a single EC2 instance and a local MySQL database
+    for storage.
+    This template demonstrates using the AWS CloudFormation bootstrap scripts to install
+    the packages and files necessary to deploy the Apache web server,
+    PHP and MySQL at instance launch time.
+    ",
+
+    "Parameters": {
+
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+        },
+
+        "DBName": {
+            "Default": "MyDatabase",
+            "Description": "MySQL database name",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "64",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+            "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+        },
+
+        "DBUser": {
+            "NoEcho": "true",
+            "Description": "Username for MySQL database access",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "16",
+            "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+            "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+        },
+
+        "DBPassword": {
+            "NoEcho": "true",
+            "Description": "Password for MySQL database access",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "41",
+            "AllowedPattern": "[a-zA-Z0-9]*",
+            "ConstraintDescription": "must contain only alphanumeric characters."
+        },
+
+        "DBRootPassword": {
+            "NoEcho": "true",
+            "Description": "Root password for MySQL",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "41",
+            "AllowedPattern": "[a-zA-Z0-9]*",
+            "ConstraintDescription": "must contain only alphanumeric characters."
+        },
+
+        "InstanceType": {
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "m1.small",
+            "AllowedValues": ["t1.micro", "t2.micro", "t2.small", "t2.medium", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "c1.medium", "c1.xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "g2.2xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge", "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "hi1.4xlarge", "hs1.8xlarge", "cr1.8xlarge", "cc2.8xlarge", "cg1.4xlarge"],
+            "ConstraintDescription": "must be a valid EC2 instance type."
+        },
+
+        "SSHLocation": {
+            "Description": " The IP address range that can be used to SSH to the EC2 instances",
+            "Type": "String",
+            "MinLength": "9",
+            "MaxLength": "18",
+            "Default": "0.0.0.0/0",
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+        }
+    },
+
+    "Mappings": {
+        "AWSInstanceType2Arch": {
+            "t1.micro": { "Arch": "PV64" },
+            "t2.micro": { "Arch": "HVM64" },
+            "t2.small": { "Arch": "HVM64" },
+            "t2.medium": { "Arch": "HVM64" },
+            "m1.small": { "Arch": "PV64" },
+            "m1.medium": { "Arch": "PV64" },
+            "m1.large": { "Arch": "PV64" },
+            "m1.xlarge": { "Arch": "PV64" }
+        },
+
+        "AWSRegionArch2AMI": {
+            "us-east-1": { "PV64": "ami-50842d38", "HVM64": "ami-08842d60", "HVMG2": "ami-3a329952" },
+            "us-west-2": { "PV64": "ami-af86c69f", "HVM64": "ami-8786c6b7", "HVMG2": "ami-47296a77" },
+            "us-west-1": { "PV64": "ami-c7a8a182", "HVM64": "ami-cfa8a18a", "HVMG2": "ami-331b1376" },
+            "eu-west-1": { "PV64": "ami-aa8f28dd", "HVM64": "ami-748e2903", "HVMG2": "ami-00913777" },
+            "eu-central-1": { "PV64": "ami-a03503bd", "HVM64": "ami-b43503a9", "HVMG2": "ami-b03503ad" },
+            "eu-west-2": { "PV64": "ami-0cdb51c8064e24bbc", "HVM64": "ami-0cdb51c8064e24bbc", "HVMG2": "ami-0cdb51c8064e24bbc" }
+        }
+
+    },
+
+    "Resources": {
+
+        "WebServerInstance": {
+            "Type": "AWS::EC2::Instance",
+            "DeletionPolicy" : "Delete",
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "configSets": {
+                        "InstallAndRun": ["Install", "Configure"]
+                    },
+
+                    "Install": {
+                        "packages": {
+                            "yum": {
+                                "mysql": [],
+                                "mysql-server": [],
+                                "mysql-libs": [],
+                                "httpd": [],
+                                "php": [],
+                                "php-mysql": []
+                            }
+                        },
+
+                        "files": {
+                            "/var/www/html/index.php": {
+                                "content": {
+                                    "Fn::Join": ["", [
+
+                                        "<?php\n",
+                                        "$Database   = \"localhost\";\n",
+                                        "$DBName = \"", { "Ref": "DBName" }, "\";\n",
+                                        "$DBUser = \"", { "Ref": "DBUser" }, "\";\n",
+                                        "$DBPassword = \"", { "Ref": "DBPassword" }, "\";\n",
+                                        "?>\n",
+
+
+                                        "<html>\n",
+                                        "<body>\n",
+                                        "<h1>Sample page - Cloud Formation Version</h1>\n",
+                                        "<?php\n",
+                                        "/* Connect to MySQL and select the database. */\n",
+                                        "$connection = mysqli_connect($Database, $DBUser, $DBPassword);\n",
+                                        "if (mysqli_connect_errno()) echo \"Failed to connect to MySQL: \" . mysqli_connect_error();\n",
+                                        "$database = mysqli_select_db($connection, $DBName);\n",
+                                        "/* Ensure that the Employees table exists. */\n",
+                                        "VerifyEmployeesTable($connection, $DBName);\n",
+                                        "/* If input fields are populated, add a row to the Employees table. */\n",
+                                        "$employee_name = htmlentities($_POST['Name']);\n",
+                                        "$employee_address = htmlentities($_POST['Address']);\n",
+                                        "if (strlen($employee_name) || strlen($employee_address)) {\n",
+                                        "  AddEmployee($connection, $employee_name, $employee_address);\n",
+                                        "}\n",
+                                        "?>\n",
+                                        "<!-- Input form -->\n",
+                                        "<form action=\"<?php echo $_SERVER['SCRIPT_NAME']; ?>\" method=\"POST\">\n",
+                                        "<table border=\"0\">\n",
+                                        "<tr>\n",
+                                        "<td>Name</td>\n",
+                                        "<td>Address</td>\n",
+                                        "</tr>\n",
+                                        "<tr>\n",
+                                        "<td><input type=\"text\" name=\"Name\" maxlength=\"45\" size=\"30\" /></td>\n",
+                                        "<td><input type=\"text\" name=\"Address\" maxlength=\"90\" size=\"60\" /></td>\n",
+                                        "<td><input type=\"submit\" value=\"Add Data\" /></td>\n",
+                                        "</tr>\n",
+                                        "</table>\n",
+                                        "</form>\n",
+                                        "<!-- Display table data. -->\n",
+                                        "<table border=\"1\" cellpadding=\"2\" cellspacing=\"2\">\n",
+                                        "<tr>\n",
+                                        "<td>ID</td>\n",
+                                        "<td>Name</td>\n",
+                                        "<td>Address</td>\n",
+                                        "</tr>\n",
+                                        "<?php\n",
+                                        "$result = mysqli_query($connection, \"SELECT * FROM Employees\");\n",
+                                        "while($query_data = mysqli_fetch_row($result)) {\n",
+                                        "  echo \"<tr>\";\n",
+                                        "  echo \"<td>\", $query_data[0], \"</td>\", \"<td>\", $query_data[1], \"</td>\", \"<td>\", $query_data[2], \"</td>\";\n",
+                                        "  echo \"</tr>\";\n",
+                                        "}\n",
+                                        "?>\n",
+                                        "</table>\n",
+                                        "<!-- Clean up. -->\n",
+                                        "<?php\n",
+                                        "mysqli_free_result($result);\n",
+                                        "mysqli_close($connection);\n",
+                                        "?>\n",
+                                        "</body>\n",
+                                        "</html>\n",
+                                        "<?php\n",
+                                        "/* Add an employee to the table. */\n",
+                                        "function AddEmployee($connection, $name, $address) {\n",
+                                        "  $n = mysqli_real_escape_string($connection, $name);\n",
+                                        "  $a = mysqli_real_escape_string($connection, $address);\n",
+                                        "  $query = \"INSERT INTO `Employees` (`Name`, `Address`) VALUES ('$n', '$a');\";\n",
+                                        "  if(!mysqli_query($connection, $query)) echo(\"<p>Error adding employee data.</p>\");\n",
+                                        "}\n",
+                                        "/* Check whether the table exists and, if not, create it. */\n",
+                                        "function VerifyEmployeesTable($connection, $dbName) {\n",
+                                        "  if(!TableExists(\"Employees\", $connection, $dbName)) {\n",
+                                        "    $query = \"CREATE TABLE `Employees` (\n",
+                                        "              `ID` int(11) NOT NULL AUTO_INCREMENT,\n",
+                                        "              `Name` varchar(45) DEFAULT NULL,\n",
+                                        "              `Address` varchar(90) DEFAULT NULL,\n",
+                                        "              PRIMARY KEY (`ID`),\n",
+                                        "              UNIQUE KEY `ID_UNIQUE` (`ID`)\n",
+                                        "              ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1\";\n",
+                                        "    if(!mysqli_query($connection, $query)) echo(\"<p>Error creating table.</p>\");\n",
+                                        "  }\n",
+                                        "}\n",
+                                        "/* Check for the existence of a table. */\n",
+                                        "function TableExists($tableName, $connection, $dbName) {\n",
+                                        "  $t = mysqli_real_escape_string($connection, $tableName);\n",
+                                        "  $d = mysqli_real_escape_string($connection, $dbName);\n",
+                                        "  $checktable = mysqli_query($connection, \"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_NAME = '$t' AND TABLE_SCHEMA = '$d'\");\n",
+                                        "  if(mysqli_num_rows($checktable) > 0) return true;\n",
+                                        "  return false;\n",
+                                        "}\n",
+                                        "?>\n"
+                                        ]]                                
+                                    },
+                                "mode": "000600",
+                                "owner": "apache",
+                                "group": "apache"
+                            },
+
+                            "/tmp/setup.mysql": {
+                                "content": {
+                                    "Fn::Join": ["", [
+                                        "CREATE DATABASE ", { "Ref": "DBName" }, ";\n",
+                                        "GRANT ALL ON ", { "Ref": "DBName" }, ".* TO '", { "Ref": "DBUser" }, "'@localhost IDENTIFIED BY '", { "Ref": "DBPassword" }, "';\n"
+                                    ]]
+                                },
+                                "mode": "000400",
+                                "owner": "root",
+                                "group": "root"
+                            },
+                            "/etc/cfn/cfn-hup.conf": {
+                                "content": {
+                                    "Fn::Join": ["", [
+                                        "[main]\n",
+                                        "stack=", { "Ref": "AWS::StackId" }, "\n",
+                                        "region=", { "Ref": "AWS::Region" }, "\n"
+                                    ]]
+                                },
+                                "mode": "000400",
+                                "owner": "root",
+                                "group": "root"
+                            },
+
+                            "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                                "content": {
+                                    "Fn::Join": ["", [
+                                        "[cfn-auto-reloader-hook]\n",
+                                        "triggers=post.update\n",
+                                        "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                                        "action=/opt/aws/bin/cfn-init -v ",
+                                        "         --stack ", { "Ref": "AWS::StackName" },
+                                        "         --resource WebServerInstance ",
+                                        "         --configsets InstallAndRun ",
+                                        "         --region ", { "Ref": "AWS::Region" }, "\n",
+                                        "runas=root\n"
+                                    ]]
+                                }
+                            }
+                        },
+
+                        "services": {
+                            "sysvinit": {
+                                "mysqld": { "enabled": "true", "ensureRunning": "true" },
+                                "httpd": { "enabled": "true", "ensureRunning": "true" },
+                                "cfn-hup": {
+                                    "enabled": "true",
+                                    "ensureRunning": "true",
+                                    "files": ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]
+                                }
+                            }
+                        }
+                    },
+
+                    "Configure": {
+                        "commands": {
+                            "01_set_mysql_root_password": {
+                                "command": { "Fn::Join": ["", ["mysqladmin -u root password '", { "Ref": "DBRootPassword" }, "'"]] },
+                                "test": { "Fn::Join": ["", ["$(mysql ", { "Ref": "DBName" }, " -u root --password='", { "Ref": "DBRootPassword" }, "' >/dev/null 2>&1 </dev/null); (( $? != 0 ))"]] }
+                            },
+                            "02_create_database": {
+                                "command": { "Fn::Join": ["", ["mysql -u root --password='", { "Ref": "DBRootPassword" }, "' < /tmp/setup.mysql"]] },
+                                "test": { "Fn::Join": ["", ["$(mysql ", { "Ref": "DBName" }, " -u root --password='", { "Ref": "DBRootPassword" }, "' >/dev/null 2>&1 </dev/null); (( $? != 0 ))"]] }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": ["AWSRegionArch2AMI", { "Ref": "AWS::Region" },
+                        { "Fn::FindInMap": ["AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch"] }
+                    ]
+                },
+                "InstanceType": { "Ref": "InstanceType" },
+                "SecurityGroups": [{ "Ref": "WebServerSecurityGroup" }],
+                "KeyName": { "Ref": "KeyName" },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": ["", [
+                            "#!/bin/bash -xe\n",
+                            "yum update -y aws-cfn-bootstrap\n",
+
+                            "# Install the files and packages from the metadata\n",
+                            "/opt/aws/bin/cfn-init -v ",
+                            "         --stack ", { "Ref": "AWS::StackName" },
+                            "         --resource WebServerInstance ",
+                            "         --configsets InstallAndRun ",
+                            "         --region ", { "Ref": "AWS::Region" }, "\n",
+
+                            "# Signal the status from cfn-init\n",
+                            "/opt/aws/bin/cfn-signal -e $? ",
+                            "         --stack ", { "Ref": "AWS::StackName" },
+                            "         --resource WebServerInstance ",
+                            "         --region ", { "Ref": "AWS::Region" }, "\n"
+                        ]]
+                    }
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT5M"
+                }
+            }
+        },
+
+        "WebServerSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DeletionPolicy" : "Delete",
+            "Properties": {
+                "GroupDescription": "Enable HTTP access via port 80",
+                "SecurityGroupIngress": [
+                    { "IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" },
+                    { "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": { "Ref": "SSHLocation" } }
+                ]
+            }
+        }
+    },
+
+    "Outputs": {
+        "WebsiteURL": {
+            "Description": "URL for newly created LAMP stack",
+            "Value": { "Fn::Join": ["", ["http://", { "Fn::GetAtt": ["WebServerInstance", "PublicDnsName"] }]] }
+        }
+    }
+}
